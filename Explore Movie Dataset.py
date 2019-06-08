@@ -110,17 +110,14 @@ df.to_csv('processed-tmdb-movies.csv')
 # 
 # 要求：每一个语句只能用一行代码实现。
 
-# In[7]:
+# In[12]:
 
 
-df['id']
-df['popularity']
-df['budget']
-df['runtime']
-df['vote_average'].head()
 
 df[50:61]['popularity']
 df.iloc[np.r_[0:20,47,48]] #这个不是一行吗
+
+df[['id','popularity','budget','runtime','vote_average']]
 
 
 # ---
@@ -134,7 +131,7 @@ df.iloc[np.r_[0:20,47,48]] #这个不是一行吗
 # 
 # 要求：请使用 Logical Indexing实现。
 
-# In[8]:
+# In[13]:
 
 
 df[df['popularity']>5]
@@ -150,7 +147,7 @@ df[(df['popularity'])>5&(df['release_date']>'1996')]
 # 
 # 要求：使用 `Groupby` 命令实现。
 
-# In[9]:
+# In[14]:
 
 
 df.groupby('release_year')['revenue'].agg(['mean'])
@@ -176,7 +173,7 @@ df.groupby('director')['popularity'].agg(['mean']).sort_values(by='mean', ascend
 
 # **任务3.1：**对 `popularity` 最高的20名电影绘制其 `popularity` 值。
 
-# In[10]:
+# In[15]:
 
 
 df.sort_values('popularity', ascending=False)[:20].plot(kind='barh', y='popularity', x='original_title')
@@ -187,7 +184,7 @@ plt.ylabel('original_title')
 # ---
 # **任务3.2：**分析电影净利润（票房-成本）随着年份变化的情况，并简单进行分析。
 
-# In[11]:
+# In[16]:
 
 
 movie_num = df.groupby('release_year').count()['original_title']
@@ -196,7 +193,7 @@ plt.xlabel('release_year')
 plt.ylabel('number_of_movies')
 
 
-# In[12]:
+# In[17]:
 
 
 plt.style.use('ggplot')
@@ -224,7 +221,7 @@ axes[1].set_ylabel('profit sum')
 # 
 # **[选做]任务3.3：**选择最多产的10位导演（电影数量最多的），绘制他们排行前3的三部电影的票房情况，并简要进行分析。
 
-# In[13]:
+# In[18]:
 
 
 director_num = df.groupby('director').count()['original_title'].nlargest(10).index
