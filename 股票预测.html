@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>.ipynb</title>
+<title>股票预测</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13173,14 +13173,11 @@ div#notebook {
 <p>通过这些数据，我希望能够做到预测一段时间内股票的走势，股票指数所能达到的最高点与最低点。
 读者们为了利益的最大化，将会被期望在预测指数最低点当天买入，在预测指数最高点当天卖出。</p>
 <p>为了评价预测模型的结果好坏，我们将一部分的数据集当作训练集，另一部分的数据集当作测试集。
-将从训练集中得到的预测模型放入测试集中进行检验，得出预测结果的准确率、精确率和召回率，
-画出ROC与PR曲线，得出AUC值（ROC曲线所围面积）
-准确率帮助我们判断模型整体预测能力的好坏。
-精确率帮助我们判断模型带来高收益的结果是否可靠。
-召回率帮助我们判断模型是否能比较好的预测出所有能得出高收益的操作。
-ROC曲线能直观的表示模型对收益的预测能力。AUC值是ROC所围的面积，越大则代表模型预测能力越好。
-PR曲线可以直观的将精确率和召回率显示在一张图上。
-用这些指标评估模型的性能是比较全面的。</p>
+将从训练集中得到的预测模型放入测试集中进行检验，使用线性回归的方法进行预测。
+p值可以体现变量的影响程度，p值很接近于，说明变量对预测量有较大的线性关系影响。</p>
+<p>MSE，为预测值和测试值之间的平均误差的方差，MSE越小，说明模型预测的贴近实际值。
+R2，为决定系数，表示了拟合程度的好坏。越接近1，表明方程的变量对y的解释能力越强，这个模型对数据拟合的也较好
+越接近0，表明模型拟合的越差。经验值：R2&gt;0.4， 则拟合效果好</p>
 
 </div>
 </div>
@@ -13223,25 +13220,21 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[12]:</div>
+<div class="prompt input_prompt">In&nbsp;[287]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span>
-<span class="kn">from</span> <span class="nn">statsmodels.stats.outliers_influence</span> <span class="k">import</span> <span class="n">variance_inflation_factor</span>
-<span class="kn">from</span> <span class="nn">sklearn.datasets</span> <span class="k">import</span> <span class="n">load_boston</span>
-<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="k">import</span> <span class="n">train_test_split</span>
 <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">LinearRegression</span>
 <span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">StandardScaler</span>
-<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="k">import</span> <span class="n">r2_score</span>
 <span class="kn">from</span> <span class="nn">patsy</span> <span class="k">import</span> <span class="n">dmatrices</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">LogisticRegression</span>
 <span class="kn">from</span> <span class="nn">sklearn</span> <span class="k">import</span> <span class="n">preprocessing</span><span class="p">,</span> <span class="n">svm</span>
-<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="k">import</span> <span class="n">confusion_matrix</span><span class="p">,</span> <span class="n">precision_score</span><span class="p">,</span> <span class="n">recall_score</span><span class="p">,</span> <span class="n">accuracy_score</span>
+<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="k">import</span> <span class="n">mean_squared_error</span><span class="p">,</span> <span class="n">r2_score</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
 <span class="o">%</span><span class="k">matplotlib</span> inline
 
 <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;data.csv&#39;</span><span class="p">,</span><span class="n">index_col</span><span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
@@ -13258,7 +13251,7 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[12]:</div>
+    <div class="prompt output_prompt">Out[287]:</div>
 
 
 
@@ -13354,7 +13347,7 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[13]:</div>
+<div class="prompt input_prompt">In&nbsp;[288]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">corr</span><span class="p">()</span>
@@ -13370,7 +13363,7 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[13]:</div>
+    <div class="prompt output_prompt">Out[288]:</div>
 
 
 
@@ -13469,7 +13462,7 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[14]:</div>
+<div class="prompt input_prompt">In&nbsp;[289]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
@@ -13485,7 +13478,7 @@ PR曲线可以直观的将精确率和召回率显示在一张图上。
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[14]:</div>
+    <div class="prompt output_prompt">Out[289]:</div>
 
 
 
@@ -13618,7 +13611,7 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[15]:</div>
+<div class="prompt input_prompt">In&nbsp;[290]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span> <span class="o">=</span> <span class="s1">&#39;tradeDate&#39;</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="s1">&#39;CHG&#39;</span><span class="p">)</span>
@@ -13634,13 +13627,13 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[15]:</div>
+    <div class="prompt output_prompt">Out[290]:</div>
 
 
 
 
 <div class="output_text output_subarea output_execute_result">
-<pre>&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f0207f2cc88&gt;</pre>
+<pre>&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f0fd81c0d68&gt;</pre>
 </div>
 
 </div>
@@ -13666,7 +13659,7 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[16]:</div>
+<div class="prompt input_prompt">In&nbsp;[291]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span> <span class="o">=</span> <span class="s1">&#39;tradeDate&#39;</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="s1">&#39;closeIndex&#39;</span><span class="p">)</span>
@@ -13682,13 +13675,13 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[16]:</div>
+    <div class="prompt output_prompt">Out[291]:</div>
 
 
 
 
 <div class="output_text output_subarea output_execute_result">
-<pre>&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f0207e3f0b8&gt;</pre>
+<pre>&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f0fd796d320&gt;</pre>
 </div>
 
 </div>
@@ -13714,7 +13707,7 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[17]:</div>
+<div class="prompt input_prompt">In&nbsp;[292]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;highestIndex&#39;</span><span class="p">],</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span><span class="n">label</span> <span class="o">=</span> <span class="s1">&#39;highestIndex&#39;</span><span class="p">)</span>
@@ -13733,13 +13726,13 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 
 <div class="output_area">
 
-    <div class="prompt output_prompt">Out[17]:</div>
+    <div class="prompt output_prompt">Out[292]:</div>
 
 
 
 
 <div class="output_text output_subarea output_execute_result">
-<pre>&lt;matplotlib.legend.Legend at 0x7f0207f02198&gt;</pre>
+<pre>&lt;matplotlib.legend.Legend at 0x7f0fd77547b8&gt;</pre>
 </div>
 
 </div>
@@ -13765,10 +13758,170 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[8]:</div>
+<div class="prompt input_prompt">In&nbsp;[293]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">y</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="n">dmatrices</span><span class="p">(</span><span class="s1">&#39;closeIndex ~ highestIndex + lowestIndex + turnoverVol&#39;</span><span class="p">,</span><span class="n">df</span><span class="p">,</span><span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;dataframe&#39;</span> <span class="p">)</span>
+
+<span class="n">vif</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+<span class="n">vif</span><span class="p">[</span><span class="s2">&quot;VIF Factor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">variance_inflation_factor</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+<span class="n">vif</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span>
+<span class="n">vif</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[293]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>VIF Factor</th>
+      <th>features</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>11.894647</td>
+      <td>Intercept</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>504.235874</td>
+      <td>highestIndex</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>503.427579</td>
+      <td>lowestIndex</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>1.037446</td>
+      <td>turnoverVol</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[294]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">y</span><span class="p">,</span> <span class="n">X</span> <span class="o">=</span> <span class="n">dmatrices</span><span class="p">(</span><span class="s1">&#39;closeIndex ~ highestIndex + turnoverVol&#39;</span><span class="p">,</span><span class="n">df</span><span class="p">,</span><span class="n">return_type</span> <span class="o">=</span> <span class="s1">&#39;dataframe&#39;</span> <span class="p">)</span>
+
+<span class="n">vif</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+<span class="n">vif</span><span class="p">[</span><span class="s2">&quot;VIF Factor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">variance_inflation_factor</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+<span class="n">vif</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">columns</span>
+<span class="n">vif</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[294]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>VIF Factor</th>
+      <th>features</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>11.257954</td>
+      <td>Intercept</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1.023886</td>
+      <td>highestIndex</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1.023886</td>
+      <td>turnoverVol</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[295]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">从图中可以看出</span><span class="err">，</span><span class="n">股票的收盘指数和每天的最高指数</span><span class="err">、</span><span class="n">最低指数的变化趋势是一致的</span><span class="err">。</span>
+<span class="n">从VIF系数看来</span><span class="err">，</span><span class="n">closeIndex</span><span class="err">、</span><span class="n">highestIndex与lowIndex之间存在多重共线性</span><span class="err">。</span><span class="n">去除一个lowestIndex后</span><span class="err">，</span><span class="n">VIF小于10</span><span class="err">，</span><span class="n">是合格的</span><span class="err">。</span>
 <span class="n">在一天之内指数的变动程度要比股票指数随不同日期变化的程度小的多</span><span class="err">。</span>
 <span class="n">从预测股票走势的角度来看</span><span class="err">，</span><span class="n">highestIndex</span><span class="p">,</span><span class="n">lowestIndex与closeIndex都可以作为预测的目标</span><span class="err">，</span><span class="n">他们都可以比较好的反应股票的走势</span><span class="err">。</span>
 </pre></div>
@@ -13788,7 +13941,7 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 
 <div class="output_subarea output_text output_error">
 <pre>
-<span class="ansi-cyan-fg">  File </span><span class="ansi-green-fg">&#34;&lt;ipython-input-8-e33b83443f2b&gt;&#34;</span><span class="ansi-cyan-fg">, line </span><span class="ansi-green-fg">1</span>
+<span class="ansi-cyan-fg">  File </span><span class="ansi-green-fg">&#34;&lt;ipython-input-295-3e601d1dc9f3&gt;&#34;</span><span class="ansi-cyan-fg">, line </span><span class="ansi-green-fg">1</span>
 <span class="ansi-red-fg">    从图中可以看出，股票的收盘指数和每天的最高指数、最低指数的变化趋势是一致的。</span>
                                          ^
 <span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character in identifier
@@ -13829,18 +13982,216 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[68]:</div>
+<div class="prompt input_prompt">In&nbsp;[296]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#将closeIndex作为预测对象</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#观察CHG对closeIndex的影响</span>
+<span class="n">df</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">lm</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span><span class="n">df</span><span class="p">[[</span><span class="s1">&#39;intercept&#39;</span><span class="p">,</span><span class="s1">&#39;CHG&#39;</span><span class="p">,</span><span class="s1">&#39;CHGPct&#39;</span><span class="p">]])</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[296]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<table class="simpletable">
+<caption>OLS Regression Results</caption>
+<tr>
+  <th>Dep. Variable:</th>       <td>closeIndex</td>    <th>  R-squared:         </th> <td>   0.002</td> 
+</tr>
+<tr>
+  <th>Model:</th>                   <td>OLS</td>       <th>  Adj. R-squared:    </th> <td>   0.001</td> 
+</tr>
+<tr>
+  <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   2.297</td> 
+</tr>
+<tr>
+  <th>Date:</th>             <td>Wed, 24 Jul 2019</td> <th>  Prob (F-statistic):</th>  <td> 0.101</td>  
+</tr>
+<tr>
+  <th>Time:</th>                 <td>00:32:40</td>     <th>  Log-Likelihood:    </th> <td> -17971.</td> 
+</tr>
+<tr>
+  <th>No. Observations:</th>      <td>  2187</td>      <th>  AIC:               </th> <td>3.595e+04</td>
+</tr>
+<tr>
+  <th>Df Residuals:</th>          <td>  2184</td>      <th>  BIC:               </th> <td>3.597e+04</td>
+</tr>
+<tr>
+  <th>Df Model:</th>              <td>     2</td>      <th>                     </th>     <td> </td>    
+</tr>
+<tr>
+  <th>Covariance Type:</th>      <td>nonrobust</td>    <th>                     </th>     <td> </td>    
+</tr>
+</table>
+<table class="simpletable">
+<tr>
+      <td></td>         <th>coef</th>     <th>std err</th>      <th>t</th>      <th>P>|t|</th>  <th>[0.025</th>    <th>0.975]</th>  
+</tr>
+<tr>
+  <th>intercept</th> <td> 2789.4726</td> <td>   19.227</td> <td>  145.082</td> <td> 0.000</td> <td> 2751.768</td> <td> 2827.178</td>
+</tr>
+<tr>
+  <th>CHG</th>       <td>    2.2397</td> <td>    1.063</td> <td>    2.107</td> <td> 0.035</td> <td>    0.155</td> <td>    4.325</td>
+</tr>
+<tr>
+  <th>CHGPct</th>    <td>-6259.6110</td> <td> 3328.724</td> <td>   -1.880</td> <td> 0.060</td> <td>-1.28e+04</td> <td>  268.185</td>
+</tr>
+</table>
+<table class="simpletable">
+<tr>
+  <th>Omnibus:</th>       <td>311.886</td> <th>  Durbin-Watson:     </th> <td>   0.005</td> 
+</tr>
+<tr>
+  <th>Prob(Omnibus):</th> <td> 0.000</td>  <th>  Jarque-Bera (JB):  </th> <td> 524.495</td> 
+</tr>
+<tr>
+  <th>Skew:</th>          <td> 0.941</td>  <th>  Prob(JB):          </th> <td>1.28e-114</td>
+</tr>
+<tr>
+  <th>Kurtosis:</th>      <td> 4.488</td>  <th>  Cond. No.          </th> <td>1.01e+04</td> 
+</tr>
+</table><br/><br/>Warnings:<br/>[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.<br/>[2] The condition number is large, 1.01e+04. This might indicate that there are<br/>strong multicollinearity or other numerical problems.
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[297]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#观察CHG,turnoverVol对closeIndex的影响</span>
+<span class="n">df</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">lm</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span><span class="n">df</span><span class="p">[[</span><span class="s1">&#39;intercept&#39;</span><span class="p">,</span><span class="s1">&#39;turnoverVol&#39;</span><span class="p">,</span><span class="s1">&#39;CHG&#39;</span><span class="p">,</span><span class="s1">&#39;CHGPct&#39;</span><span class="p">]])</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[297]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<table class="simpletable">
+<caption>OLS Regression Results</caption>
+<tr>
+  <th>Dep. Variable:</th>       <td>closeIndex</td>    <th>  R-squared:         </th> <td>   0.025</td> 
+</tr>
+<tr>
+  <th>Model:</th>                   <td>OLS</td>       <th>  Adj. R-squared:    </th> <td>   0.024</td> 
+</tr>
+<tr>
+  <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   18.85</td> 
+</tr>
+<tr>
+  <th>Date:</th>             <td>Wed, 24 Jul 2019</td> <th>  Prob (F-statistic):</th> <td>4.51e-12</td> 
+</tr>
+<tr>
+  <th>Time:</th>                 <td>00:32:43</td>     <th>  Log-Likelihood:    </th> <td> -17946.</td> 
+</tr>
+<tr>
+  <th>No. Observations:</th>      <td>  2187</td>      <th>  AIC:               </th> <td>3.590e+04</td>
+</tr>
+<tr>
+  <th>Df Residuals:</th>          <td>  2183</td>      <th>  BIC:               </th> <td>3.592e+04</td>
+</tr>
+<tr>
+  <th>Df Model:</th>              <td>     3</td>      <th>                     </th>     <td> </td>    
+</tr>
+<tr>
+  <th>Covariance Type:</th>      <td>nonrobust</td>    <th>                     </th>     <td> </td>    
+</tr>
+</table>
+<table class="simpletable">
+<tr>
+       <td></td>          <th>coef</th>     <th>std err</th>      <th>t</th>      <th>P>|t|</th>  <th>[0.025</th>    <th>0.975]</th>  
+</tr>
+<tr>
+  <th>intercept</th>   <td> 2613.1738</td> <td>   30.993</td> <td>   84.315</td> <td> 0.000</td> <td> 2552.395</td> <td> 2673.953</td>
+</tr>
+<tr>
+  <th>turnoverVol</th> <td>  2.55e-08</td> <td> 3.54e-09</td> <td>    7.202</td> <td> 0.000</td> <td> 1.86e-08</td> <td> 3.24e-08</td>
+</tr>
+<tr>
+  <th>CHG</th>         <td>    2.2565</td> <td>    1.051</td> <td>    2.147</td> <td> 0.032</td> <td>    0.195</td> <td>    4.318</td>
+</tr>
+<tr>
+  <th>CHGPct</th>      <td>-7121.0418</td> <td> 3292.800</td> <td>   -2.163</td> <td> 0.031</td> <td>-1.36e+04</td> <td> -663.691</td>
+</tr>
+</table>
+<table class="simpletable">
+<tr>
+  <th>Omnibus:</th>       <td>405.067</td> <th>  Durbin-Watson:     </th> <td>   0.010</td> 
+</tr>
+<tr>
+  <th>Prob(Omnibus):</th> <td> 0.000</td>  <th>  Jarque-Bera (JB):  </th> <td> 766.491</td> 
+</tr>
+<tr>
+  <th>Skew:</th>          <td> 1.125</td>  <th>  Prob(JB):          </th> <td>3.62e-167</td>
+</tr>
+<tr>
+  <th>Kurtosis:</th>      <td> 4.830</td>  <th>  Cond. No.          </th> <td>1.53e+12</td> 
+</tr>
+</table><br/><br/>Warnings:<br/>[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.<br/>[2] The condition number is large, 1.53e+12. This might indicate that there are<br/>strong multicollinearity or other numerical problems.
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[298]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#预测forecast_out天后的</span>
+<span class="n">forecast_out</span> <span class="o">=</span> <span class="mi">20</span>
+
+<span class="n">df_new</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 <span class="n">df_new</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">]],</span><span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
 <span class="nb">print</span><span class="p">(</span><span class="n">df_new</span><span class="p">)</span>
-<span class="n">X_data</span> <span class="o">=</span> <span class="n">df_new</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span>
-                 <span class="n">X_data</span><span class="p">,</span> <span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">lm_full</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
-<span class="n">lm_full</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
-<span class="n">lm_full</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+
+
+<span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;lable&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">)</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_new</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s1">&#39;lable&#39;</span><span class="p">],</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="n">X_lately</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">:]</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">]</span>
+
+<span class="n">df_new</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">inplace</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;lable&#39;</span><span class="p">])</span>
 </pre></div>
 
     </div>
@@ -13925,443 +14276,6 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 </div>
 
-<div class="output_area">
-
-    <div class="prompt output_prompt">Out[68]:</div>
-
-
-
-
-<div class="output_text output_subarea output_execute_result">
-<pre>0.9989849935685887</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[66]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">lm</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span><span class="n">df</span><span class="p">[[</span><span class="s1">&#39;intercept&#39;</span><span class="p">,</span><span class="s1">&#39;CHG&#39;</span><span class="p">,</span><span class="s1">&#39;CHGPct&#39;</span><span class="p">]])</span>
-<span class="n">result</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
-<span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt output_prompt">Out[66]:</div>
-
-
-
-<div class="output_html rendered_html output_subarea output_execute_result">
-<table class="simpletable">
-<caption>OLS Regression Results</caption>
-<tr>
-  <th>Dep. Variable:</th>       <td>closeIndex</td>    <th>  R-squared:         </th> <td>   0.002</td> 
-</tr>
-<tr>
-  <th>Model:</th>                   <td>OLS</td>       <th>  Adj. R-squared:    </th> <td>   0.001</td> 
-</tr>
-<tr>
-  <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   2.297</td> 
-</tr>
-<tr>
-  <th>Date:</th>             <td>Sun, 21 Jul 2019</td> <th>  Prob (F-statistic):</th>  <td> 0.101</td>  
-</tr>
-<tr>
-  <th>Time:</th>                 <td>19:45:36</td>     <th>  Log-Likelihood:    </th> <td> -17971.</td> 
-</tr>
-<tr>
-  <th>No. Observations:</th>      <td>  2187</td>      <th>  AIC:               </th> <td>3.595e+04</td>
-</tr>
-<tr>
-  <th>Df Residuals:</th>          <td>  2184</td>      <th>  BIC:               </th> <td>3.597e+04</td>
-</tr>
-<tr>
-  <th>Df Model:</th>              <td>     2</td>      <th>                     </th>     <td> </td>    
-</tr>
-<tr>
-  <th>Covariance Type:</th>      <td>nonrobust</td>    <th>                     </th>     <td> </td>    
-</tr>
-</table>
-<table class="simpletable">
-<tr>
-      <td></td>         <th>coef</th>     <th>std err</th>      <th>t</th>      <th>P>|t|</th>  <th>[0.025</th>    <th>0.975]</th>  
-</tr>
-<tr>
-  <th>intercept</th> <td> 2789.4726</td> <td>   19.227</td> <td>  145.082</td> <td> 0.000</td> <td> 2751.768</td> <td> 2827.178</td>
-</tr>
-<tr>
-  <th>CHG</th>       <td>    2.2397</td> <td>    1.063</td> <td>    2.107</td> <td> 0.035</td> <td>    0.155</td> <td>    4.325</td>
-</tr>
-<tr>
-  <th>CHGPct</th>    <td>-6259.6110</td> <td> 3328.724</td> <td>   -1.880</td> <td> 0.060</td> <td>-1.28e+04</td> <td>  268.185</td>
-</tr>
-</table>
-<table class="simpletable">
-<tr>
-  <th>Omnibus:</th>       <td>311.886</td> <th>  Durbin-Watson:     </th> <td>   0.005</td> 
-</tr>
-<tr>
-  <th>Prob(Omnibus):</th> <td> 0.000</td>  <th>  Jarque-Bera (JB):  </th> <td> 524.495</td> 
-</tr>
-<tr>
-  <th>Skew:</th>          <td> 0.941</td>  <th>  Prob(JB):          </th> <td>1.28e-114</td>
-</tr>
-<tr>
-  <th>Kurtosis:</th>      <td> 4.488</td>  <th>  Cond. No.          </th> <td>1.01e+04</td> 
-</tr>
-</table><br/><br/>Warnings:<br/>[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.<br/>[2] The condition number is large, 1.01e+04. This might indicate that there are<br/>strong multicollinearity or other numerical problems.
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[70]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">lm</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span><span class="n">df</span><span class="p">[[</span><span class="s1">&#39;intercept&#39;</span><span class="p">,</span><span class="s1">&#39;turnoverVol&#39;</span><span class="p">,</span><span class="s1">&#39;CHG&#39;</span><span class="p">,</span><span class="s1">&#39;CHGPct&#39;</span><span class="p">]])</span>
-<span class="n">result</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
-<span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt output_prompt">Out[70]:</div>
-
-
-
-<div class="output_html rendered_html output_subarea output_execute_result">
-<table class="simpletable">
-<caption>OLS Regression Results</caption>
-<tr>
-  <th>Dep. Variable:</th>       <td>closeIndex</td>    <th>  R-squared:         </th> <td>   0.025</td> 
-</tr>
-<tr>
-  <th>Model:</th>                   <td>OLS</td>       <th>  Adj. R-squared:    </th> <td>   0.024</td> 
-</tr>
-<tr>
-  <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   18.85</td> 
-</tr>
-<tr>
-  <th>Date:</th>             <td>Sun, 21 Jul 2019</td> <th>  Prob (F-statistic):</th> <td>4.51e-12</td> 
-</tr>
-<tr>
-  <th>Time:</th>                 <td>19:46:45</td>     <th>  Log-Likelihood:    </th> <td> -17946.</td> 
-</tr>
-<tr>
-  <th>No. Observations:</th>      <td>  2187</td>      <th>  AIC:               </th> <td>3.590e+04</td>
-</tr>
-<tr>
-  <th>Df Residuals:</th>          <td>  2183</td>      <th>  BIC:               </th> <td>3.592e+04</td>
-</tr>
-<tr>
-  <th>Df Model:</th>              <td>     3</td>      <th>                     </th>     <td> </td>    
-</tr>
-<tr>
-  <th>Covariance Type:</th>      <td>nonrobust</td>    <th>                     </th>     <td> </td>    
-</tr>
-</table>
-<table class="simpletable">
-<tr>
-       <td></td>          <th>coef</th>     <th>std err</th>      <th>t</th>      <th>P>|t|</th>  <th>[0.025</th>    <th>0.975]</th>  
-</tr>
-<tr>
-  <th>intercept</th>   <td> 2613.1738</td> <td>   30.993</td> <td>   84.315</td> <td> 0.000</td> <td> 2552.395</td> <td> 2673.953</td>
-</tr>
-<tr>
-  <th>turnoverVol</th> <td>  2.55e-08</td> <td> 3.54e-09</td> <td>    7.202</td> <td> 0.000</td> <td> 1.86e-08</td> <td> 3.24e-08</td>
-</tr>
-<tr>
-  <th>CHG</th>         <td>    2.2565</td> <td>    1.051</td> <td>    2.147</td> <td> 0.032</td> <td>    0.195</td> <td>    4.318</td>
-</tr>
-<tr>
-  <th>CHGPct</th>      <td>-7121.0418</td> <td> 3292.800</td> <td>   -2.163</td> <td> 0.031</td> <td>-1.36e+04</td> <td> -663.691</td>
-</tr>
-</table>
-<table class="simpletable">
-<tr>
-  <th>Omnibus:</th>       <td>405.067</td> <th>  Durbin-Watson:     </th> <td>   0.010</td> 
-</tr>
-<tr>
-  <th>Prob(Omnibus):</th> <td> 0.000</td>  <th>  Jarque-Bera (JB):  </th> <td> 766.491</td> 
-</tr>
-<tr>
-  <th>Skew:</th>          <td> 1.125</td>  <th>  Prob(JB):          </th> <td>3.62e-167</td>
-</tr>
-<tr>
-  <th>Kurtosis:</th>      <td> 4.830</td>  <th>  Cond. No.          </th> <td>1.53e+12</td> 
-</tr>
-</table><br/><br/>Warnings:<br/>[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.<br/>[2] The condition number is large, 1.53e+12. This might indicate that there are<br/>strong multicollinearity or other numerical problems.
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[71]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#去除NaN值</span>
-<span class="n">forecast_out</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="mf">0.01</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)))</span>
-<span class="c1">#预测forecast_out天后的</span>
-
-<span class="n">df_new</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;lable&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df_new</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df_new</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="n">df_new</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;tradeDate&#39;</span><span class="p">,</span><span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span><span class="n">inplace</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
-<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_new</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s1">&#39;lable&#39;</span><span class="p">],</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">))</span>
-
-<span class="n">X_lately</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">:]</span>
-<span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:</span><span class="o">-</span><span class="n">forecast_out</span><span class="p">]</span>
-
-<span class="n">df_new</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">inplace</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df_new</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">X_lately</span><span class="p">)</span>
-<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;lable&#39;</span><span class="p">])</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>       tradeDate  closeIndex  highestIndex  lowestIndex  turnoverVol     CHG  \
-0     2006-03-01     1056.62       1057.69      1049.64   1942573000    3.61   
-1     2006-03-02     1038.67       1056.05      1034.68   2487786100  -17.95   
-2     2006-03-03     1041.68       1043.42      1029.56   2120053900    3.01   
-3     2006-03-06     1038.87       1044.42      1036.11   1787096300   -2.81   
-4     2006-03-07     1014.97       1037.98      1013.14   1933651600  -23.90   
-5     2006-03-08     1009.27       1014.97       999.93   1746305500   -5.70   
-6     2006-03-09     1004.34       1010.91      1002.20   1273509900   -4.93   
-7     2006-03-10     1008.90       1011.76      1004.69   1188798300    4.56   
-8     2006-03-13     1019.86       1020.88      1008.51   1176591100   10.96   
-9     2006-03-14     1018.27       1021.65      1012.11   1134803000   -1.59   
-10    2006-03-15     1028.96       1028.97      1017.08   1484206800   10.69   
-11    2006-03-16     1027.62       1029.81      1025.52   1478433900   -1.34   
-12    2006-03-17     1024.02       1029.56      1021.08   1500192400   -3.60   
-13    2006-03-20     1037.66       1037.91      1019.65   1538991200   13.64   
-14    2006-03-21     1040.76       1047.05      1036.24   1907766200    3.10   
-15    2006-03-22     1047.67       1047.94      1036.71   1864057500    6.91   
-16    2006-03-23     1048.54       1049.32      1042.82   2046788500    0.87   
-17    2006-03-24     1042.60       1051.76      1041.23   2009823700   -5.94   
-18    2006-03-27     1050.71       1050.71      1037.08   1713407000    8.11   
-19    2006-03-28     1055.98       1056.52      1048.64   2227399900    5.27   
-20    2006-03-29     1065.29       1074.04      1057.68   3052634500    9.31   
-21    2006-03-30     1055.63       1067.99      1055.14   2201249400   -9.66   
-22    2006-03-31     1061.09       1061.47      1050.22   2227619000    5.46   
-23    2006-04-03     1079.32       1079.37      1061.96   2772976100   18.23   
-24    2006-04-04     1089.37       1089.37      1076.20   3114875700   10.05   
-25    2006-04-05     1099.97       1100.56      1089.55   3293691400   10.60   
-26    2006-04-06     1103.24       1109.68      1097.32   3616704900    3.27   
-27    2006-04-07     1103.15       1105.10      1091.89   3257086000   -0.09   
-28    2006-04-10     1117.91       1118.08      1100.69   3206752000   14.76   
-29    2006-04-11     1123.31       1126.09      1112.01   3560752000    5.40   
-...          ...         ...           ...          ...          ...     ...   
-2157  2015-01-12     3513.58       3560.53      3461.32  26656717500  -33.14   
-2158  2015-01-13     3514.04       3550.16      3494.77  18715396500    0.46   
-2159  2015-01-14     3502.42       3547.24      3471.56  19601251000  -11.62   
-2160  2015-01-15     3604.12       3604.12      3482.27  23781233800  101.70   
-2161  2015-01-16     3635.15       3662.16      3601.26  28268161400   31.03   
-2162  2015-01-19     3355.16       3497.25      3330.98  32950527500 -279.99   
-2163  2015-01-20     3396.22       3419.20      3325.68  29784323200   41.06   
-2164  2015-01-21     3548.89       3557.79      3409.43  33792821000  152.67   
-2165  2015-01-22     3567.61       3576.76      3520.05  26885359900   18.72   
-2166  2015-01-23     3571.73       3627.81      3548.63  28017217200    4.12   
-2167  2015-01-26     3607.99       3611.62      3559.38  23976620300   36.26   
-2168  2015-01-27     3574.93       3616.26      3510.02  28766917900  -33.06   
-2169  2015-01-28     3525.32       3583.31      3512.39  21622021400  -49.61   
-2170  2015-01-29     3481.80       3505.58      3453.90  21161886000  -43.52   
-2171  2015-01-30     3434.39       3514.22      3431.94  19647915700  -47.41   
-2172  2015-02-02     3353.96       3407.26      3347.09  19518369900  -80.43   
-2173  2015-02-03     3437.45       3441.71      3360.72  19284609600   83.49   
-2174  2015-02-04     3401.77       3476.82      3399.57  19130434900  -35.68   
-2175  2015-02-05     3366.95       3487.95      3366.86  25043060900  -34.82   
-2176  2015-02-06     3312.42       3374.05      3285.94  19266418600  -54.53   
-2177  2015-02-09     3345.92       3376.53      3298.60  17235382000   33.50   
-2178  2015-02-10     3406.94       3407.18      3339.55  15930908800   61.02   
-2179  2015-02-11     3434.12       3445.66      3412.14  14461377200   27.18   
-2180  2015-02-12     3442.87       3453.58      3405.63  15608169100    8.75   
-2181  2015-02-13     3469.83       3509.51      3452.08  20108997100   26.96   
-2182  2015-02-16     3499.48       3504.48      3466.61  16564134300   29.65   
-2183  2015-02-17     3522.32       3536.82      3511.09  16532831300   22.84   
-2184  2015-02-25     3478.73       3529.55      3463.96  16553935100  -43.59   
-2185  2015-02-26     3566.30       3569.33      3456.87  22932843800   87.57   
-2186  2015-02-27     3572.84       3594.81      3560.46  22278643800    6.54   
-
-        CHGPct  intercept    lable  
-0     0.003428          1  1061.09  
-1    -0.016988          1  1079.32  
-2     0.002898          1  1089.37  
-3    -0.002698          1  1099.97  
-4    -0.023006          1  1103.24  
-5    -0.005616          1  1103.15  
-6    -0.004885          1  1117.91  
-7     0.004540          1  1123.31  
-8     0.010863          1  1117.07  
-9    -0.001559          1  1093.93  
-10    0.010498          1  1118.61  
-11   -0.001302          1  1124.41  
-12   -0.003503          1  1131.28  
-13    0.013320          1  1138.24  
-14    0.002987          1  1134.38  
-15    0.006639          1  1149.16  
-16    0.000830          1  1142.70  
-17   -0.005665          1  1141.93  
-18    0.007779          1  1155.73  
-19    0.005016          1  1155.27  
-20    0.008816          1  1172.35  
-21   -0.009068          1  1218.44  
-22    0.005172          1  1251.61  
-23    0.017180          1  1265.93  
-24    0.009311          1  1255.04  
-25    0.009730          1  1296.26  
-26    0.002973          1  1352.16  
-27   -0.000082          1  1331.13  
-28    0.013380          1  1335.52  
-29    0.004830          1  1331.20  
-...        ...        ...      ...  
-2157 -0.009344          1  3434.12  
-2158  0.000131          1  3442.87  
-2159 -0.003307          1  3469.83  
-2160  0.029037          1  3499.48  
-2161  0.008610          1  3522.32  
-2162 -0.077023          1  3478.73  
-2163  0.012238          1  3566.30  
-2164  0.044953          1  3572.84  
-2165  0.005275          1      NaN  
-2166  0.001155          1      NaN  
-2167  0.010152          1      NaN  
-2168 -0.009163          1      NaN  
-2169 -0.013877          1      NaN  
-2170 -0.012345          1      NaN  
-2171 -0.013617          1      NaN  
-2172 -0.023419          1      NaN  
-2173  0.024893          1      NaN  
-2174 -0.010380          1      NaN  
-2175 -0.010236          1      NaN  
-2176 -0.016196          1      NaN  
-2177  0.010113          1      NaN  
-2178  0.018237          1      NaN  
-2179  0.007978          1      NaN  
-2180  0.002548          1      NaN  
-2181  0.007831          1      NaN  
-2182  0.008545          1      NaN  
-2183  0.006527          1      NaN  
-2184 -0.012375          1      NaN  
-2185  0.025173          1      NaN  
-2186  0.001834          1      NaN  
-
-[2187 rows x 9 columns]
-(2187, 8)
-(2187, 9)
-(2165, 8)
-[[ 1.05662e+03  1.05769e+03  1.04964e+03 ...  3.61000e+00  3.42800e-03
-   1.00000e+00]
- [ 1.03867e+03  1.05605e+03  1.03468e+03 ... -1.79500e+01 -1.69880e-02
-   1.00000e+00]
- [ 1.04168e+03  1.04342e+03  1.02956e+03 ...  3.01000e+00  2.89800e-03
-   1.00000e+00]
- ...
- [ 3.35516e+03  3.49725e+03  3.33098e+03 ... -2.79990e+02 -7.70230e-02
-   1.00000e+00]
- [ 3.39622e+03  3.41920e+03  3.32568e+03 ...  4.10600e+01  1.22380e-02
-   1.00000e+00]
- [ 3.54889e+03  3.55779e+03  3.40943e+03 ...  1.52670e+02  4.49530e-02
-   1.00000e+00]]
-[[ 3.56761000e+03  3.57676000e+03  3.52005000e+03  2.68853599e+10
-   1.87200000e+01  5.27500000e-03  1.00000000e+00]
- [ 3.57173000e+03  3.62781000e+03  3.54863000e+03  2.80172172e+10
-   4.12000000e+00  1.15500000e-03  1.00000000e+00]
- [ 3.60799000e+03  3.61162000e+03  3.55938000e+03  2.39766203e+10
-   3.62600000e+01  1.01520000e-02  1.00000000e+00]
- [ 3.57493000e+03  3.61626000e+03  3.51002000e+03  2.87669179e+10
-  -3.30600000e+01 -9.16300000e-03  1.00000000e+00]
- [ 3.52532000e+03  3.58331000e+03  3.51239000e+03  2.16220214e+10
-  -4.96100000e+01 -1.38770000e-02  1.00000000e+00]
- [ 3.48180000e+03  3.50558000e+03  3.45390000e+03  2.11618860e+10
-  -4.35200000e+01 -1.23450000e-02  1.00000000e+00]
- [ 3.43439000e+03  3.51422000e+03  3.43194000e+03  1.96479157e+10
-  -4.74100000e+01 -1.36170000e-02  1.00000000e+00]
- [ 3.35396000e+03  3.40726000e+03  3.34709000e+03  1.95183699e+10
-  -8.04300000e+01 -2.34190000e-02  1.00000000e+00]
- [ 3.43745000e+03  3.44171000e+03  3.36072000e+03  1.92846096e+10
-   8.34900000e+01  2.48930000e-02  1.00000000e+00]
- [ 3.40177000e+03  3.47682000e+03  3.39957000e+03  1.91304349e+10
-  -3.56800000e+01 -1.03800000e-02  1.00000000e+00]
- [ 3.36695000e+03  3.48795000e+03  3.36686000e+03  2.50430609e+10
-  -3.48200000e+01 -1.02360000e-02  1.00000000e+00]
- [ 3.31242000e+03  3.37405000e+03  3.28594000e+03  1.92664186e+10
-  -5.45300000e+01 -1.61960000e-02  1.00000000e+00]
- [ 3.34592000e+03  3.37653000e+03  3.29860000e+03  1.72353820e+10
-   3.35000000e+01  1.01130000e-02  1.00000000e+00]
- [ 3.40694000e+03  3.40718000e+03  3.33955000e+03  1.59309088e+10
-   6.10200000e+01  1.82370000e-02  1.00000000e+00]
- [ 3.43412000e+03  3.44566000e+03  3.41214000e+03  1.44613772e+10
-   2.71800000e+01  7.97800000e-03  1.00000000e+00]
- [ 3.44287000e+03  3.45358000e+03  3.40563000e+03  1.56081691e+10
-   8.75000000e+00  2.54800000e-03  1.00000000e+00]
- [ 3.46983000e+03  3.50951000e+03  3.45208000e+03  2.01089971e+10
-   2.69600000e+01  7.83100000e-03  1.00000000e+00]
- [ 3.49948000e+03  3.50448000e+03  3.46661000e+03  1.65641343e+10
-   2.96500000e+01  8.54500000e-03  1.00000000e+00]
- [ 3.52232000e+03  3.53682000e+03  3.51109000e+03  1.65328313e+10
-   2.28400000e+01  6.52700000e-03  1.00000000e+00]
- [ 3.47873000e+03  3.52955000e+03  3.46396000e+03  1.65539351e+10
-  -4.35900000e+01 -1.23750000e-02  1.00000000e+00]
- [ 3.56630000e+03  3.56933000e+03  3.45687000e+03  2.29328438e+10
-   8.75700000e+01  2.51730000e-02  1.00000000e+00]
- [ 3.57284000e+03  3.59481000e+03  3.56046000e+03  2.22786438e+10
-   6.54000000e+00  1.83400000e-03  1.00000000e+00]]
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -14370,8 +14284,9 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><strong>(你的回答)</strong>
-若是去掉交易额、CHG指数等变量，还是能够很好的预测股票收盘指数，收盘指数closeindex约99.9%与highestindex和lowestindex有关。</p>
-<p>在线性模型中，closeindex与CHG,CHGPcty这三个变量的R平方系数只有0.002,说明关系不大，可以忽略它们的影响。
+若是去掉CHG指数等变量，还是能够很好的预测股票收盘指数，收盘指数closeindex约99.9%与highestindex、lowestindex和turnoverVol有关。</p>
+<p>考虑到closeIndex与highestIndex和lowestIndex之间存在较大的多重共线性，所以可以除去lowestIndex</p>
+<p>在线性模型中，closeindex与CHG,CHGPct这两个变量的R平方系数只有0.002,说明关系不大，可以忽略它们的影响。
 在加入turnoverVol变量后，R平方系数增大为0.025，说明turnoverVol对收盘指数还是有一定影响的，不能被忽视。</p>
 <p>去掉空值后，可以预测出forecast_out天后的closeindex值，用于预测股票指数的走势。</p>
 
@@ -14396,68 +14311,19 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[72]:</div>
+<div class="prompt input_prompt">In&nbsp;[305]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">clf</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
-<span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
-<span class="n">accuracy</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;accuracy = &#39;</span><span class="p">,</span><span class="n">accuracy</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">lm</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
+<span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
 
-<span class="n">y_pred</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_lately</span><span class="p">)</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_lately</span><span class="p">)</span>
 
 
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>accuracy =  0.8774790395973788
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[73]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">y_pred</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_lately</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span><span class="n">accuracy</span><span class="p">,</span><span class="n">forecast_out</span><span class="p">)</span>
-
-<span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">last_date = df.iloc[-1].name</span>
-<span class="sd">last_unix = last_date.timestamp()</span>
-<span class="sd">print(last_date,last_unix)</span>
-<span class="sd">one_day = 86400</span>
-<span class="sd">next_unix = last_unix + one_day</span>
-
-<span class="sd">for i in forecast_set:</span>
-<span class="sd">    next_date = datetime.datetime.fromtimestamp(next_unix)</span>
-<span class="sd">    next_unix += 86400</span>
-<span class="sd">    df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]</span>
-
-<span class="sd">&#39;&#39;&#39;</span>
-
+<span class="c1">#将预测结果转化为字典，保存未来20天的股票指数</span>
 <span class="n">last_date</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
 <span class="n">x_day</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">forecast_out</span><span class="p">,</span><span class="n">forecast_out</span><span class="p">)</span>
-
-
 
 <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x_day</span><span class="p">)</span>
 <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
@@ -14480,12 +14346,56 @@ CHG的标准差值比较大，表示股票指数的波动性较强。</p>
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>[3704.12413729 3745.88364855 3723.36122753 3722.3074361  3609.8148701
- 3541.8254657  3528.81915143 3407.78664394 3563.20547538 3498.31023036
- 3559.4931997  3396.1441754  3445.65567424 3485.2638197  3477.17150368
- 3483.95762087 3583.72504023 3553.11408472 3574.29142367 3520.97938751
- 3720.48348517 3666.29283829] 0.8774790395973788 22
-predict:{1.0: 3704.124137294976, 2.0: 3745.8836485506267, 3.0: 3723.3612275312043, 4.0: 3722.307436096524, 5.0: 3609.8148700961638, 6.0: 3541.8254656967856, 7.0: 3528.8191514263995, 8.0: 3407.786643939709, 9.0: 3563.2054753762486, 10.0: 3498.3102303621, 11.0: 3559.4931997020717, 12.0: 3396.144175401781, 13.0: 3445.655674239806, 14.0: 3485.2638196999706, 15.0: 3477.171503682047, 16.0: 3483.9576208694443, 17.0: 3583.7250402308655, 18.0: 3553.1140847167885, 19.0: 3574.2914236671413, 20.0: 3520.9793875118803, 21.0: 3720.483485166732, 22.0: 3666.2928382937525}
+<pre>predict:{1.0: 3714.622229633362, 2.0: 3742.235375426254, 3.0: 3613.812918388856, 4.0: 3569.1275321355174, 5.0: 3513.206626986618, 6.0: 3434.293492524904, 7.0: 3530.663948116288, 8.0: 3477.5554841630346, 9.0: 3506.516957930989, 10.0: 3405.117844889876, 11.0: 3420.95398655047, 12.0: 3468.1573246366775, 13.0: 3461.479139682254, 14.0: 3486.496291750312, 15.0: 3547.815317938814, 16.0: 3543.4140295197503, 17.0: 3556.0658482924287, 18.0: 3526.183816627081, 19.0: 3695.8178396167123, 20.0: 3654.677687417984}
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[307]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#对预测结果进行评价，使用MSE与R2两个评价系数</span>
+<span class="n">df_new</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_new</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">]],</span><span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="n">X_data</span> <span class="o">=</span> <span class="n">df_new</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span>
+                 <span class="n">X_data</span><span class="p">,</span> <span class="n">df_new</span><span class="p">[</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">],</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">lm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<span class="n">y_pred_2</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+
+<span class="c1"># 查看残差平方的均值(mean square error,MSE) </span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Mean squared error: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="o">%</span> <span class="n">mean_squared_error</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred_2</span><span class="p">))</span>
+
+<span class="c1"># R2 决定系数（拟合优度）</span>
+<span class="c1"># 模型越好：r2→1</span>
+<span class="c1"># 模型越差：r2→0</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Variance score: </span><span class="si">%.4f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">r2_score</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span><span class="n">y_pred_2</span><span class="p">))</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Mean squared error: 1262.51
+Variance score: 0.9987
 </pre>
 </div>
 </div>
@@ -14498,9 +14408,10 @@ predict:{1.0: 3704.124137294976, 2.0: 3745.8836485506267, 3.0: 3723.361227531204
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><strong>(你的回答)</strong>
-模型主要从highest、lowestindex和closeindex三个数据进行预测，得出了未来22天的股票指数的走势。
-由于预测所用的三个数据与收盘指数closeindex的关联性很高，并且预测的精确度accuracy达到了0.877,比较高
-说明股票的走势的结果还是比较可信的。</p>
+模型主要从highest、lowestindex和closeindex三个数据进行预测，得出了未来20天的股票指数的走势。</p>
+<p>在评价后，发现均方差的值为1262.51,相对于股票指数平均几千的值来说，已经比较小了。
+而系数R2表示了数据的拟合程度，0.9987的值很接近于1,是比较理想的。
+从上述两个评价系数的表现，得知股票的走势的结果还是比较可信的。</p>
 
 </div>
 </div>
@@ -14535,20 +14446,13 @@ predict:{1.0: 3704.124137294976, 2.0: 3745.8836485506267, 3.0: 3723.361227531204
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[63]:</div>
+<div class="prompt input_prompt">In&nbsp;[308]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#画出未来有22天中收盘指数的预期变化</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mf">6.5</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">211</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">x_day</span><span class="p">,</span><span class="n">y_pred</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">)</span>           
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mf">6.5</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">212</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#画出未来有20天中收盘指数的预期变化</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mf">6.5</span><span class="p">))</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_day</span><span class="p">,</span><span class="n">y_pred</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">x_day</span><span class="p">,</span><span class="n">y_pred</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;closeIndex&#39;</span><span class="p">)</span>           
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -14571,22 +14475,7 @@ predict:{1.0: 3704.124137294976, 2.0: 3745.8836485506267, 3.0: 3723.361227531204
 
 
 <div class="output_png output_subarea ">
-<img src="data:image/png;base64,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
-"
->
-</div>
-
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-
-
-<div class="output_png output_subarea ">
-<img src="data:image/png;base64,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
+<img src="data:image/png;base64,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
 "
 >
 </div>
@@ -14601,10 +14490,10 @@ predict:{1.0: 3704.124137294976, 2.0: 3745.8836485506267, 3.0: 3723.361227531204
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><strong>(你的回答)</strong>
-画出了收盘指数在未来有22天中的走势，以折线图与散点图的方式。
-从图中可以看出，第12天的股票指数最低，而在第12天后第21天的收盘指数最高。
-所以应该在第12天买入，21天卖出。</p>
-<p>这次模型预测主要用了每天最高与最低的股票指数与交易额去预测未来每天股票的收盘指数。
+画出了收盘指数在未来有20天中的走势，以折线图与散点图的方式。
+从图中可以看出，第10天的股票指数最低，而在之后第19天的收盘指数最高。
+所以应该在第10天买入，19天卖出。</p>
+<p>这次模型预测主要用了每天最高与收盘的股票指数与交易额去预测未来每天股票的收盘指数。
 而CHG指数对closeindex的影响很小，可以不考虑。每天的收盘指数与最高和最低指数的数值是差不多的，这三者的角色也是
 基本相同的，所以这次的预测主要还是用交易额与收盘指数去预测未来的股票指数。</p>
 <p>但现实中能影响股票的变量是非常多的，单纯数字上的收盘指数和交易额并不足够预测出可靠的股票走势。还有很多诸如政策影响、主力资金流动、股民的信心等等变量会对股票走势产生很大的影响。我们需要更多的数据与变量去做菜更加精确、可靠的预测。</p>

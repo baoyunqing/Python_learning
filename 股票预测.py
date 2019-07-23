@@ -59,14 +59,14 @@
 # 读者们为了利益的最大化，将会被期望在预测指数最低点当天买入，在预测指数最高点当天卖出。
 # 
 # 为了评价预测模型的结果好坏，我们将一部分的数据集当作训练集，另一部分的数据集当作测试集。
-# 将从训练集中得到的预测模型放入测试集中进行检验，得出预测结果的准确率、精确率和召回率，
-# 画出ROC与PR曲线，得出AUC值（ROC曲线所围面积）
-# 准确率帮助我们判断模型整体预测能力的好坏。
-# 精确率帮助我们判断模型带来高收益的结果是否可靠。
-# 召回率帮助我们判断模型是否能比较好的预测出所有能得出高收益的操作。
-# ROC曲线能直观的表示模型对收益的预测能力。AUC值是ROC所围的面积，越大则代表模型预测能力越好。
-# PR曲线可以直观的将精确率和召回率显示在一张图上。
-# 用这些指标评估模型的性能是比较全面的。
+# 将从训练集中得到的预测模型放入测试集中进行检验，使用线性回归的方法进行预测。
+# p值可以体现变量的影响程度，p值很接近于，说明变量对预测量有较大的线性关系影响。
+# 
+# MSE，为预测值和测试值之间的平均误差的方差，MSE越小，说明模型预测的贴近实际值。
+# R2，为决定系数，表示了拟合程度的好坏。越接近1，表明方程的变量对y的解释能力越强，这个模型对数据拟合的也较好
+# 越接近0，表明模型拟合的越差。经验值：R2>0.4， 则拟合效果好
+# 
+# 
 
 # ---
 # <a id="analysis"></a>
@@ -93,38 +93,34 @@
 
 # > **提示**：*不应* 在每个 notebook 框 (cell) 中进行太多操作。可以自由创建框，来进行数据探索。在这个项目中，可以在初始 notebook 中进行大量探索性操作。不要求对其进行组织，但请务必仔细阅读备注，理解每个代码框的用途。完成分析之后，你可以创建 notebook 副本，在其中去除多余数据，组织好你的每一步分析，从而形成信息连贯、结构紧密的报告。
 
-# In[12]:
+# In[287]:
 
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-from sklearn.datasets import load_boston
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score
 from patsy import dmatrices
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn import preprocessing, svm
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, accuracy_score
+from sklearn.metrics import mean_squared_error, r2_score
 import math
-import datetime
+import seaborn as sns
 get_ipython().run_line_magic('matplotlib', 'inline')
 
 df = pd.read_csv('data.csv',index_col= 0)
 df.head()
 
 
-# In[13]:
+# In[288]:
 
 
 df.corr()
 
 
-# In[14]:
+# In[289]:
 
 
 df.describe()
@@ -142,19 +138,19 @@ df.describe()
 # CHG的标准差值比较大，表示股票指数的波动性较强。
 # 
 
-# In[15]:
+# In[290]:
 
 
 df.plot(x = 'tradeDate',y = 'CHG')
 
 
-# In[16]:
+# In[291]:
 
 
 df.plot(x = 'tradeDate',y = 'closeIndex')
 
 
-# In[17]:
+# In[292]:
 
 
 plt.plot(df['highestIndex'],color='blue',label = 'highestIndex')
@@ -163,10 +159,33 @@ plt.plot(df['closeIndex'],color='green', label = 'closeIndex')
 plt.legend()
 
 
-# In[8]:
+# In[293]:
+
+
+y, X = dmatrices('closeIndex ~ highestIndex + lowestIndex + turnoverVol',df,return_type = 'dataframe' )
+
+vif = pd.DataFrame()
+vif["VIF Factor"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+vif["features"] = X.columns
+vif
+
+
+# In[294]:
+
+
+y, X = dmatrices('closeIndex ~ highestIndex + turnoverVol',df,return_type = 'dataframe' )
+
+vif = pd.DataFrame()
+vif["VIF Factor"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+vif["features"] = X.columns
+vif
+
+
+# In[295]:
 
 
 从图中可以看出，股票的收盘指数和每天的最高指数、最低指数的变化趋势是一致的。
+从VIF系数看来，closeIndex、highestIndex与lowIndex之间存在多重共线性。去除一个lowestIndex后，VIF小于10，是合格的。
 在一天之内指数的变动程度要比股票指数随不同日期变化的程度小的多。
 从预测股票走势的角度来看，highestIndex,lowestIndex与closeIndex都可以作为预测的目标，他们都可以比较好的反应股票的走势。
 
@@ -194,68 +213,55 @@ plt.legend()
 # - _完善的过程是否清晰记录了，其中使用了什么技术？_
 # - _完善过程中的结果以及最终结果是否清晰记录了？_
 
-# In[68]:
+# In[296]:
 
 
-#将closeIndex作为预测对象
-df_new = df.drop(df.columns[[0,5,6]],axis = 1)
-print(df_new)
-X_data = df_new.drop('closeIndex', axis=1, inplace=False)
-X_train, X_test, y_train, y_test = train_test_split(
-                 X_data, df_new['closeIndex'], test_size=0.2, random_state=0)
-lm_full = LinearRegression()
-lm_full.fit(X_train, y_train)
-lm_full.score(X_test, y_test)
-
-
-# In[66]:
-
-
+#观察CHG对closeIndex的影响
 df['intercept'] = 1
 lm = sm.OLS(df['closeIndex'],df[['intercept','CHG','CHGPct']])
 result = lm.fit()
 result.summary()
 
 
-# In[70]:
+# In[297]:
 
 
+#观察CHG,turnoverVol对closeIndex的影响
 df['intercept'] = 1
 lm = sm.OLS(df['closeIndex'],df[['intercept','turnoverVol','CHG','CHGPct']])
 result = lm.fit()
 result.summary()
 
 
-# In[71]:
+# In[298]:
 
 
-#去除NaN值
-forecast_out = int(math.ceil(0.01 * len(df)))
 #预测forecast_out天后的
+forecast_out = 20
 
 df_new = df.copy()
-df_new['lable'] = df_new['closeIndex'].shift(-forecast_out)
+df_new = df.drop(df.columns[[0,5,6]],axis = 1)
+
 print(df_new)
 
-print(df.shape)
-print(df_new.shape)
-df_new.drop('tradeDate',axis = 1,inplace = True)
+
+df_new['lable'] = df_new['closeIndex'].shift(-forecast_out)
+
 X = np.array(df_new.drop(['lable'], axis = 1))
 
 X_lately = X[-forecast_out:]
 X = X[:-forecast_out]
 
 df_new.dropna(inplace = True)
-print(df_new.shape)
-print(X)
-print(X_lately)
 y = np.array(df_new['lable'])
 
 
 # **(你的回答)**
-# 若是去掉交易额、CHG指数等变量，还是能够很好的预测股票收盘指数，收盘指数closeindex约99.9%与highestindex和lowestindex有关。
+# 若是去掉CHG指数等变量，还是能够很好的预测股票收盘指数，收盘指数closeindex约99.9%与highestindex、lowestindex和turnoverVol有关。
 # 
-# 在线性模型中，closeindex与CHG,CHGPcty这三个变量的R平方系数只有0.002,说明关系不大，可以忽略它们的影响。
+# 考虑到closeIndex与highestIndex和lowestIndex之间存在较大的多重共线性，所以可以除去lowestIndex
+# 
+# 在线性模型中，closeindex与CHG,CHGPct这两个变量的R平方系数只有0.002,说明关系不大，可以忽略它们的影响。
 # 在加入turnoverVol变量后，R平方系数增大为0.025，说明turnoverVol对收盘指数还是有一定影响的，不能被忽视。
 # 
 # 去掉空值后，可以预测出forecast_out天后的closeindex值，用于预测股票指数的走势。
@@ -273,43 +279,19 @@ y = np.array(df_new['lable'])
 # 
 # 
 
-# In[72]:
+# In[305]:
 
 
-X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=0.2, random_state=0)
-clf = LinearRegression()
-clf.fit(X_train, y_train)
-accuracy = clf.score(X_test, y_test)
-print('accuracy = ',accuracy)
+X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=0.1, random_state=0)
+lm = LinearRegression()
+lm.fit(X_train, y_train)
 
-y_pred = clf.predict(X_lately)
+y_pred = lm.predict(X_lately)
 
 
-# In[73]:
-
-
-y_pred = clf.predict(X_lately)
-
-print(y_pred,accuracy,forecast_out)
-
-'''
-last_date = df.iloc[-1].name
-last_unix = last_date.timestamp()
-print(last_date,last_unix)
-one_day = 86400
-next_unix = last_unix + one_day
-
-for i in forecast_set:
-    next_date = datetime.datetime.fromtimestamp(next_unix)
-    next_unix += 86400
-    df.loc[next_date] = [np.nan for _ in range(len(df.columns)-1)]+[i]
-
-'''
-
+#将预测结果转化为字典，保存未来20天的股票指数
 last_date = df.iloc[-1].name
 x_day = np.linspace(1,forecast_out,forecast_out)
-
-
 
 a = np.array(x_day)
 b = np.array(y_pred)
@@ -318,10 +300,35 @@ predict = dict(zip(a,b))
 print('predict:{A}'.format(A=predict))
 
 
+# In[307]:
+
+
+#对预测结果进行评价，使用MSE与R2两个评价系数
+df_new = df.copy()
+df_new = df.drop(df.columns[[0,2,5,6]],axis = 1)
+
+X_data = df_new.drop('closeIndex', axis=1, inplace=False)
+
+X_train, X_test, y_train, y_test = train_test_split(
+                 X_data, df_new['closeIndex'], test_size=0.1, random_state=0)
+lm.fit(X_train, y_train)
+y_pred_2 = lm.predict(X_test)
+
+# 查看残差平方的均值(mean square error,MSE) 
+print("Mean squared error: %.2f"% mean_squared_error(y_test, y_pred_2))
+
+# R2 决定系数（拟合优度）
+# 模型越好：r2→1
+# 模型越差：r2→0
+print('Variance score: %.4f' % r2_score(y_test,y_pred_2))
+
+
 # **(你的回答)**
-# 模型主要从highest、lowestindex和closeindex三个数据进行预测，得出了未来22天的股票指数的走势。
-# 由于预测所用的三个数据与收盘指数closeindex的关联性很高，并且预测的精确度accuracy达到了0.877,比较高
-# 说明股票的走势的结果还是比较可信的。
+# 模型主要从highest、lowestindex和closeindex三个数据进行预测，得出了未来20天的股票指数的走势。
+# 
+# 在评价后，发现均方差的值为1262.51,相对于股票指数平均几千的值来说，已经比较小了。
+# 而系数R2表示了数据的拟合程度，0.9987的值很接近于1,是比较理想的。
+# 从上述两个评价系数的表现，得知股票的走势的结果还是比较可信的。
 # 
 
 # ---
@@ -353,20 +360,13 @@ print('predict:{A}'.format(A=predict))
 # 
 # 
 
-# In[63]:
+# In[308]:
 
 
-#画出未来有22天中收盘指数的预期变化
-plt.figure(figsize=(6, 6.5))
-plt.subplot(211)
-plt.scatter(x_day,y_pred)
-plt.xlabel('day')
-plt.ylabel('closeIndex')           
-plt.show()
-
-plt.figure(figsize=(6, 6.5))
-plt.subplot(212)
+#画出未来有20天中收盘指数的预期变化
+plt.figure(figsize=(8, 6.5))
 plt.plot(x_day,y_pred)
+plt.scatter(x_day,y_pred)
 plt.xlabel('day')
 plt.ylabel('closeIndex')           
 plt.show()
@@ -374,11 +374,11 @@ plt.show()
 
 
 # **(你的回答)**
-# 画出了收盘指数在未来有22天中的走势，以折线图与散点图的方式。
-# 从图中可以看出，第12天的股票指数最低，而在第12天后第21天的收盘指数最高。
-# 所以应该在第12天买入，21天卖出。
+# 画出了收盘指数在未来有20天中的走势，以折线图与散点图的方式。
+# 从图中可以看出，第10天的股票指数最低，而在之后第19天的收盘指数最高。
+# 所以应该在第10天买入，19天卖出。
 # 
-# 这次模型预测主要用了每天最高与最低的股票指数与交易额去预测未来每天股票的收盘指数。
+# 这次模型预测主要用了每天最高与收盘的股票指数与交易额去预测未来每天股票的收盘指数。
 # 而CHG指数对closeindex的影响很小，可以不考虑。每天的收盘指数与最高和最低指数的数值是差不多的，这三者的角色也是
 # 基本相同的，所以这次的预测主要还是用交易额与收盘指数去预测未来的股票指数。
 # 
